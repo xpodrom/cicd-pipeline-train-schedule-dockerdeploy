@@ -34,5 +34,26 @@ pipeline {
                 }
             }
         }
+        stage('Deploy To Production'){
+            when{
+             branch 'master'   
+            }
+            steps{
+             input 'Deploy To Production?'
+             milestone(1)
+             withCredentials([credentialsId: 'webserver_login',usernameVariable:'USERNAME',passwordVariable:'USERPASS']){
+                 script{
+                    sh "sshpass -p '$USERPASS' -v ssh -o StrictHostKeyChecking=no $USERNAME@$prod_ip \"docker pull xpodrom/train-shedule:${env.BUILD_NUMBER}\""      
+                     try{
+                        sh "sshpass -p '$USERPASS' -v ssh -o StrictHostKeyChecking=no $USERNAME@$prod_ip \"docker stop train-shedule\""
+                        sh "sshpass -p '$USERPASS' -v ssh -o StrictHostKeyChecking=no $USERNAME@$prod_ip \"docker rm train-shedule\""
+                     }catch(err){
+                         echo: 'caught error: $err'
+                     }
+                     sh "sshpass -p '$USERPASS' -v ssh -o StrictHostKeyChecking=no $USERNAME@$prod_ip \"docker run --restart always --name train-shedule -p 8080:8080 -d xpodrom/train-shedule:${env.BUILD_NUMBER}\""
+                  }
+               }
+            }
+        }
     }
 }
